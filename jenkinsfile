@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = 'ci-cd-app'
+        REGISTRY_URL = '<your-dockerhub-username>'
+        CLUSTER_NAME = '<your-cluster-name>'
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/<your-username>/<repository-name>.git'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh 'docker build -t $REGISTRY_URL/$DOCKER_IMAGE .'
+                }
+            }
+        }
+        stage('Run Tests') {
+            steps {
+                script {
+                    sh 'pytest test/automated_tests/'
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    sh 'docker push $REGISTRY_URL/$DOCKER_IMAGE'
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh '''
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline executed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+
